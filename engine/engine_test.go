@@ -1602,6 +1602,13 @@ func TestQueriesAgainstOldEngine(t *testing.T) {
 			step:  2 * time.Second,
 		},
 		{
+			name:  "topk with no matching parameter and no matching series",
+			query: "topk(scalar(not_there), not_there)",
+			start: time.Unix(0, 0),
+			end:   time.Unix(3000, 0),
+			step:  2 * time.Second,
+		},
+		{
 			name: "nested topk error that should not be skipped",
 			load: `load 30s
 				X 1+1x50`,
@@ -2833,6 +2840,11 @@ func TestInstantQuery(t *testing.T) {
 			sortByLabels: true,
 		},
 		{
+			name:  "topk edge case",
+			load:  `load 30s`,
+			query: "topk(scalar(null), null)",
+		},
+		{
 			name: "bottomK",
 			load: `load 30s
 						http_requests_total{pod="nginx-1", series="1"} 1
@@ -3410,7 +3422,7 @@ func TestInstantQuery(t *testing.T) {
 								if hasNaNs(oldResult) {
 									t.Log("Applying comparison with NaN equality.")
 									equalsWithNaNs(t, oldResult, newResult)
-								} else if oldResult.Err != nil {
+								} else if oldResult.Err != nil && newResult.Err != nil {
 									testutil.Equals(t, oldResult.Err.Error(), newResult.Err.Error())
 								} else {
 									testutil.Equals(t, oldResult, newResult)

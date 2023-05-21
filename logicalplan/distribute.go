@@ -275,6 +275,10 @@ func isDistributive(expr *parser.Expr) bool {
 		if _, ok := distributiveAggregations[aggr.Op]; !ok {
 			return false
 		}
+		// k-aggregate expressions are only distributive if the parameter is a number literal
+		if (aggr.Op == parser.BOTTOMK || aggr.Op == parser.TOPK) && !isNumberLiteral(aggr.Param) {
+			return false
+		}
 	case *parser.Call:
 		return len(aggr.Args) > 0
 	}

@@ -97,11 +97,11 @@ func (a *kAggregate) Next(ctx context.Context) ([]model.StepVector, error) {
 	}
 	a.paramOp.GetPool().PutVectors(args)
 
-	if in == nil {
-		return nil, nil
-	}
-	if len(args) < len(in) {
+	if (len(a.inputToHeap) == 0 && len(args) == 0) || len(in) > len(args) {
 		return nil, errors.New("Scalar value NaN overflows int64")
+	}
+	if len(in) == 0 {
+		return nil, nil
 	}
 
 	a.once.Do(func() { err = a.init(ctx) })
