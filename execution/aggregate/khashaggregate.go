@@ -23,8 +23,7 @@ type kAggregate struct {
 	next    model.VectorOperator
 	paramOp model.VectorOperator
 	// params holds the aggregate parameter for each step.
-	params []float64
-
+	params     []float64
 	vectorPool *model.VectorPool
 
 	by          bool
@@ -36,6 +35,8 @@ type kAggregate struct {
 	inputToHeap []*samplesHeap
 	heaps       []*samplesHeap
 	compare     func(float64, float64) bool
+
+	hadData bool
 }
 
 func NewKHashAggregate(
@@ -85,6 +86,15 @@ func (a *kAggregate) Next(ctx context.Context) ([]model.StepVector, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(in, args)
+
+	if (len(in) == 0 && len(args) == 0 && !a.hadData) || len(in) > len(args) {
+		return nil, errors.New("Scalar value NaN overflows int64")
+	}
+	if len(in) == 0 {
+		return nil, nil
+	}
+	a.hadData = true
 
 	for i := range args {
 		a.params[i] = args[i].Samples[0]
@@ -96,13 +106,6 @@ func (a *kAggregate) Next(ctx context.Context) ([]model.StepVector, error) {
 		}
 	}
 	a.paramOp.GetPool().PutVectors(args)
-
-	if in == nil {
-		return nil, nil
-	}
-	if len(args) < len(in) {
-		return nil, errors.New("Scalar value NaN overflows int64")
-	}
 
 	a.once.Do(func() { err = a.init(ctx) })
 	if err != nil {

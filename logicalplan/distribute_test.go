@@ -149,6 +149,16 @@ histogram_quantile(0.5, sum by (le) (dedup(
 			expected: `1`,
 		},
 		{
+			name:     "topk non distributable",
+			expr:     `topk(scalar(X), Y)`,
+			expected: `topk(scalar(X), dedup(remote(Y), remote(Y)))`,
+		},
+		{
+			name:     "topk distributable",
+			expr:     `topk(1, Y)`,
+			expected: `topk(1, dedup(remote(topk by (region) (1, Y)), remote(topk by (region) (1, Y))))`,
+		},
+		{
 			name:     "aggregation with number literal",
 			expr:     `max(foo) - 1`,
 			expected: `max(dedup(remote(max by (region) (foo)), remote(max by (region) (foo)))) - 1`,
