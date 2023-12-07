@@ -148,7 +148,6 @@ func (o *vectorOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 	if len(lhs) == 0 || len(rhs) == 0 {
 		return nil, nil
 	}
-
 	batch := o.pool.GetVectorBatch()
 	for i, vector := range lhs {
 		if i < len(rhs) {

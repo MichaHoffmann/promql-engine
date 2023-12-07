@@ -122,10 +122,11 @@ func (o *matrixSelector) Analyze() (model.OperatorTelemetry, []model.ObservableV
 
 func (o *matrixSelector) Explain() (me string, next []model.VectorOperator) {
 	r := time.Duration(o.selectRange) * time.Millisecond
+	s := time.Duration(o.offset) * time.Millisecond
 	if o.call != nil {
-		return fmt.Sprintf("[*matrixSelector] %v({%v}[%s] %v mod %v)", o.functionName, o.storage.Matchers(), r, o.shard, o.numShards), nil
+		return fmt.Sprintf("[*matrixSelector] %v({%v}[%s] - %s - %v mod %v)", o.functionName, o.storage.Matchers(), r, s, o.shard, o.numShards), nil
 	}
-	return fmt.Sprintf("[*matrixSelector] {%v}[%s] %v mod %v", o.storage.Matchers(), r, o.shard, o.numShards), nil
+	return fmt.Sprintf("[*matrixSelector] {%v}[%s] - %s - %v mod %v", o.storage.Matchers(), r, s, o.shard, o.numShards), nil
 }
 
 func (o *matrixSelector) Series(ctx context.Context) ([]labels.Labels, error) {
@@ -240,7 +241,6 @@ func (o *matrixSelector) loadSeries(ctx context.Context) error {
 			err = loadErr
 			return
 		}
-
 		o.scanners = make([]matrixScanner, len(series))
 		o.series = make([]labels.Labels, len(series))
 		b := labels.ScratchBuilder{}
