@@ -241,3 +241,17 @@ func (o *subqueryOperator) initSeries(ctx context.Context) error {
 	})
 	return err
 }
+
+func (o *subqueryOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

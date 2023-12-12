@@ -168,3 +168,17 @@ func hashSeries(hashBuf []byte, inputSeries labels.Labels) uint64 {
 	hash := xxhash.Sum64(inputSeries.Bytes(hashBuf))
 	return hash
 }
+
+func (o *dedupOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

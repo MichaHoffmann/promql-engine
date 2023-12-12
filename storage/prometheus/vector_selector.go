@@ -115,27 +115,28 @@ func (o *vectorSelector) GetPool() *model.VectorPool {
 	return o.vectorPool
 }
 
-func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
+func (o *vectorSelector) Next2(ctx context.Context, vectors []model.StepVector) error {
 	start := time.Now()
 	defer func() { o.AddExecutionTimeTaken(time.Since(start)) }()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	default:
 	}
 	if o.currentStep > o.maxt {
-		return nil, nil
+		return model.EOF
 	}
 
 	if err := o.loadSeries(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
 	ts := o.currentStep
-	vectors := o.vectorPool.GetVectorBatch()
+	i := 0
 	for currStep := 0; currStep < o.numSteps && ts <= o.maxt; currStep++ {
-		vectors = append(vectors, o.vectorPool.GetStepVector(ts))
+		vectors[i].T = ts
+		i++
 		ts += o.step
 	}
 
@@ -148,23 +149,34 @@ func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
 			series   = o.scanners[o.currentSeries]
 			seriesTs = ts
 		)
+		i := 0
 		for currStep := 0; currStep < o.numSteps && seriesTs <= o.maxt; currStep++ {
+<<<<<<< HEAD:storage/prometheus/vector_selector.go
 			currStepSamples = 0
 			t, v, h, ok, err := selectPoint(series.samples, seriesTs, o.lookbackDelta, o.offset)
+=======
+			_, v, _, ok, err := selectPoint(series.samples, seriesTs, o.lookbackDelta, o.offset)
+>>>>>>> ab4398c (wip):execution/scan/vector_selector.go
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if o.selectTimestamp {
 				v = float64(t) / 1000
 			}
 			if ok {
+<<<<<<< HEAD:storage/prometheus/vector_selector.go
 				if h != nil && !o.selectTimestamp {
 					vectors[currStep].AppendHistogram(o.vectorPool, series.signature, h)
 				} else {
 					vectors[currStep].AppendSample(o.vectorPool, series.signature, v)
 				}
 				currStepSamples++
+=======
+				vectors[currStep].Samples[i] = v
+				vectors[currStep].SampleIDs[i] = series.signature
+>>>>>>> ab4398c (wip):execution/scan/vector_selector.go
 			}
+			i++
 			seriesTs += o.step
 			o.IncrementSamplesAtStep(int(currStepSamples), currStep)
 		}
@@ -173,7 +185,12 @@ func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
 		o.currentStep += o.step * int64(o.numSteps)
 		o.currentSeries = 0
 	}
+<<<<<<< HEAD:storage/prometheus/vector_selector.go
 	return vectors, nil
+=======
+
+	return nil
+>>>>>>> ab4398c (wip):execution/scan/vector_selector.go
 }
 
 func (o *vectorSelector) loadSeries(ctx context.Context) error {
@@ -244,4 +261,15 @@ func selectPoint(it *storage.MemoizedSeriesIterator, ts, lookbackDelta, offset i
 	}
 
 	return t, v, fh, true, nil
+}
+
+func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
+	res := o.vectorPool.GetVectorBatch()[:10]
+	if err := o.Next2(ctx, res); err != nil {
+		if err == model.EOF {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return res, nil
 }

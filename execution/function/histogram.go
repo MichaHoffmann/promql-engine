@@ -252,3 +252,17 @@ func (o *histogramOperator) resetBuckets() {
 		o.seriesBuckets[i] = o.seriesBuckets[i][:0]
 	}
 }
+
+func (o *histogramOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

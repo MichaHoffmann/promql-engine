@@ -82,3 +82,17 @@ func (o *scalarOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 
 	return result, nil
 }
+
+func (o *scalarFunctionOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

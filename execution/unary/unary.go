@@ -93,3 +93,17 @@ func (u *unaryNegation) Next(ctx context.Context) ([]model.StepVector, error) {
 	}
 	return in, nil
 }
+
+func (u *unaryNegation) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := u.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

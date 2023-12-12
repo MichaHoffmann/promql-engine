@@ -398,3 +398,17 @@ func maxInt64(a, b int64) int64 {
 	return b
 
 }
+
+func (o *matrixSelector) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

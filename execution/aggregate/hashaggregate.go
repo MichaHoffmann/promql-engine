@@ -264,3 +264,17 @@ func (a *aggregate) initializeScalarTables(ctx context.Context) ([]aggregateTabl
 
 	return tables, series, nil
 }
+
+func (o *aggregate) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

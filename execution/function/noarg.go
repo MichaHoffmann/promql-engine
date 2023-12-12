@@ -72,3 +72,17 @@ func (o *noArgFunctionOperator) Next(ctx context.Context) ([]model.StepVector, e
 
 	return ret, nil
 }
+
+func (o *noArgFunctionOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

@@ -88,43 +88,40 @@ func (c *coalesce) Series(ctx context.Context) ([]labels.Labels, error) {
 	return c.series, nil
 }
 
-func (c *coalesce) Next(ctx context.Context) ([]model.StepVector, error) {
+func (c *coalesce) Next2(ctx context.Context, batch []model.StepVector) error {
 	start := time.Now()
 	defer func() { c.AddExecutionTimeTaken(time.Since(start)) }()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	default:
 	}
 
 	var err error
 	c.once.Do(func() { err = c.loadSeries(ctx) })
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var mu sync.Mutex
 	var minTs int64 = math.MaxInt64
 	var errChan = make(errorChan, len(c.operators))
+	eof := false
 	for idx, o := range c.operators {
-		// We already have a batch from the previous iteration.
-		if c.inVectors[idx] != nil {
-			continue
-		}
-
 		c.wg.Add(1)
 		go func(opIdx int, o model.VectorOperator) {
 			defer c.wg.Done()
 
-			in, err := o.Next(ctx)
-			if err != nil {
+			if err := o.Next2(ctx, c.inVectors[opIdx]); err != nil {
+				if err == model.EOF {
+					eof = true
+				}
 				errChan <- err
 				return
 			}
 
-			// Map input IDs to output IDs.
-			for _, vector := range in {
+			for _, vector := range c.inVectors[opIdx] {
 				for i := range vector.SampleIDs {
 					vector.SampleIDs[i] = vector.SampleIDs[i] + c.sampleOffsets[opIdx]
 				}
@@ -132,14 +129,9 @@ func (c *coalesce) Next(ctx context.Context) ([]model.StepVector, error) {
 					vector.HistogramIDs[i] = vector.HistogramIDs[i] + c.sampleOffsets[opIdx]
 				}
 			}
-			c.inVectors[opIdx] = in
-			if in == nil {
-				return
-			}
-
 			mu.Lock()
-			if minTs > in[0].T {
-				minTs = in[0].T
+			if minTs > c.inVectors[opIdx][0].T {
+				minTs = c.inVectors[opIdx][0].T
 			}
 			mu.Unlock()
 		}(idx, o)
@@ -148,36 +140,23 @@ func (c *coalesce) Next(ctx context.Context) ([]model.StepVector, error) {
 	close(errChan)
 
 	if err := errChan.getError(); err != nil {
-		return nil, err
+		return err
+	}
+	if eof {
+		return model.EOF
 	}
 
-	var out []model.StepVector = nil
-	for opIdx, vectors := range c.inVectors {
+	for _, vectors := range c.inVectors {
 		if len(vectors) == 0 || vectors[0].T != minTs {
 			continue
 		}
 
-		if len(vectors) > 0 && out == nil {
-			out = c.pool.GetVectorBatch()
-			for i := 0; i < len(vectors); i++ {
-				out = append(out, c.pool.GetStepVector(vectors[i].T))
-			}
-		}
-
 		for i := range vectors {
-			out[i].AppendSamples(c.pool, vectors[i].SampleIDs, vectors[i].Samples)
-			out[i].AppendHistograms(c.pool, vectors[i].HistogramIDs, vectors[i].Histograms)
-			c.operators[opIdx].GetPool().PutStepVector(vectors[i])
+			batch[i] = vectors[i]
 		}
-		c.inVectors[opIdx] = nil
-		c.operators[opIdx].GetPool().PutVectors(vectors)
 	}
 
-	if out == nil {
-		return nil, nil
-	}
-
-	return out, nil
+	return nil
 }
 
 func (c *coalesce) loadSeries(ctx context.Context) error {
@@ -228,5 +207,13 @@ func (c *coalesce) loadSeries(ctx context.Context) error {
 		c.batchSize = int64(len(c.series))
 	}
 	c.pool.SetStepSize(int(c.batchSize))
+
+	for i := range c.inVectors {
+		c.inVectors[i] = make([]model.StepVector, 10)
+		for j := range c.inVectors[i] {
+			c.inVectors[i][j].SampleIDs = make([]uint64, len(c.series))
+			c.inVectors[i][j].Samples = make([]float64, len(c.series))
+		}
+	}
 	return nil
 }

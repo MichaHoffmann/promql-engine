@@ -218,3 +218,17 @@ func getOperandsScalarLeft(v model.StepVector, i int, scalar float64) [2]float64
 func getOperandsScalarRight(v model.StepVector, i int, scalar float64) [2]float64 {
 	return [2]float64{v.Samples[i], scalar}
 }
+
+func (o *scalarOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}

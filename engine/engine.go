@@ -532,18 +532,25 @@ func (q *compatibilityQuery) Exec(ctx context.Context) (ret *promql.Result) {
 	for i, s := range resultSeries {
 		series[i].Metric = s
 	}
+
+	r := make([]model.StepVector, stepsBatch)
+	for i := range r {
+		r[i].SampleIDs = make([]uint64, len(resultSeries))
+		r[i].Samples = make([]float64, len(resultSeries))
+	}
+
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			return newErrResult(ret, ctx.Err())
 		default:
-			r, err := q.Query.exec.Next(ctx)
+			err := q.Query.exec.Next2(ctx, r)
 			if err != nil {
+				if err == model.EOF {
+					break loop
+				}
 				return newErrResult(ret, err)
-			}
-			if r == nil {
-				break loop
 			}
 
 			// Case where Series call might return nil, but samples are present.
@@ -571,9 +578,7 @@ loop:
 						H: vector.Histograms[i],
 					})
 				}
-				q.Query.exec.GetPool().PutStepVector(vector)
 			}
-			q.Query.exec.GetPool().PutVectors(r)
 		}
 	}
 

@@ -122,6 +122,20 @@ func (c *vectorSelectorOperator) Next(ctx context.Context) ([]model.StepVector, 
 	return vectors, nil
 }
 
+func (c *vectorSelectorOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := c.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}
+
 func (c *vectorSelectorOperator) Series(ctx context.Context) ([]labels.Labels, error) {
 	return []labels.Labels{
 		labels.FromStrings(labels.MetricName, "http_requests_total", "container", "a"),

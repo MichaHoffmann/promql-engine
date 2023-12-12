@@ -22,6 +22,8 @@ func (o operator) String() string { return "[noop]" }
 
 func (o operator) Next(ctx context.Context) ([]model.StepVector, error) { return nil, nil }
 
+func (o operator) Next2(ctx context.Context, batch []model.StepVector) error { return model.EOF }
+
 func (o operator) Series(ctx context.Context) ([]labels.Labels, error) { return nil, nil }
 
 func (o operator) GetPool() *model.VectorPool { return o.pool }

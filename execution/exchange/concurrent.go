@@ -58,33 +58,33 @@ func (c *concurrencyOperator) GetPool() *model.VectorPool {
 	return c.next.GetPool()
 }
 
-func (c *concurrencyOperator) Next(ctx context.Context) ([]model.StepVector, error) {
+func (c *concurrencyOperator) Next2(ctx context.Context, batch []model.StepVector) error {
 	start := time.Now()
 	defer func() { c.AddExecutionTimeTaken(time.Since(start)) }()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	default:
 	}
 
 	c.once.Do(func() {
-		go c.pull(ctx)
+		go c.pull(ctx, batch)
 		go c.drainBufferOnCancel(ctx)
 	})
 
 	r, ok := <-c.buffer
 	if !ok {
-		return nil, nil
+		return model.EOF
 	}
 	if r.err != nil {
-		return nil, r.err
+		return r.err
 	}
 
-	return r.stepVector, nil
+	return nil
 }
 
-func (c *concurrencyOperator) pull(ctx context.Context) {
+func (c *concurrencyOperator) pull(ctx context.Context, batch []model.StepVector) {
 	defer close(c.buffer)
 
 	for {
@@ -93,15 +93,15 @@ func (c *concurrencyOperator) pull(ctx context.Context) {
 			c.buffer <- maybeStepVector{err: ctx.Err()}
 			return
 		default:
-			r, err := c.next.Next(ctx)
+			err := c.next.Next2(ctx, batch)
 			if err != nil {
+				if err == model.EOF {
+					return
+				}
 				c.buffer <- maybeStepVector{err: err}
 				return
 			}
-			if r == nil {
-				return
-			}
-			c.buffer <- maybeStepVector{stepVector: r}
+			c.buffer <- maybeStepVector{}
 		}
 	}
 }

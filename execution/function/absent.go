@@ -128,3 +128,17 @@ func (o *absentOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 	o.next.GetPool().PutVectors(vectors)
 	return result, nil
 }
+
+func (o *absentOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}
