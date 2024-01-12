@@ -216,7 +216,6 @@ func (m DistributedExecutionOptimizer) Optimize(plan parser.Expr, opts *query.Op
 		if isDistributive(parent, m.SkipBinaryPushdown) {
 			return false
 		}
-
 		*current = m.distributeQuery(current, engines, m.subqueryOpts(parents, current, opts), minEngineOverlap)
 		return true
 	})
@@ -271,7 +270,7 @@ func newRemoteAggregation(rootAggregation *parser.AggregateExpr, engines []api.R
 // All remote executions are wrapped in a Deduplicate logical node to make sure that results from overlapping engines are deduplicated.
 func (m DistributedExecutionOptimizer) distributeQuery(expr *parser.Expr, engines []api.RemoteEngine, opts *query.Options, allowedStartOffset time.Duration) parser.Expr {
 	startOffset := calculateStartOffset(expr, opts.LookbackDelta)
-	if allowedStartOffset < startOffset {
+	if allowedStartOffset < startOffset || isConstantExpr(*expr) {
 		return *expr
 	}
 
@@ -450,16 +449,20 @@ func isDistributive(expr *parser.Expr, skipBinaryPushdown bool) bool {
 		return false
 	}
 
-	switch aggr := (*expr).(type) {
+	switch t := (*expr).(type) {
 	case *parser.BinaryExpr:
-		return isBinaryExpressionWithOneConstantSide(aggr) || (!skipBinaryPushdown && isBinaryExpressionWithDistributableMatching(aggr))
+		return isBinaryExpressionWithOneConstantSide(t) || (!skipBinaryPushdown && isBinaryExpressionWithDistributableMatching(t))
 	case *parser.AggregateExpr:
 		// Certain aggregations are currently not supported.
-		if _, ok := distributiveAggregations[aggr.Op]; !ok {
+		if _, ok := distributiveAggregations[t.Op]; !ok {
 			return false
 		}
 	case *parser.Call:
-		return len(aggr.Args) > 0
+		return len(t.Args) > 0
+	case *parser.ParenExpr:
+		return isDistributive(&t.Expr, skipBinaryPushdown)
+	case *parser.StepInvariantExpr:
+		return isDistributive(&t.Expr, skipBinaryPushdown)
 	}
 
 	return true
@@ -533,6 +536,12 @@ func isConstantExpr(expr parser.Expr) bool {
 		return isConstantExpr(texpr.Expr)
 	case *parser.BinaryExpr:
 		return isConstantExpr(texpr.LHS) && isConstantExpr(texpr.RHS)
+	case *parser.Call:
+		allArgsConstant := true
+		for i := range texpr.Args {
+			allArgsConstant = allArgsConstant && isConstantExpr(texpr.Args[i])
+		}
+		return allArgsConstant
 	default:
 		return false
 	}
