@@ -58,6 +58,10 @@ func (c *concurrencyOperator) GetPool() *model.VectorPool {
 	return c.next.GetPool()
 }
 
+func (c *concurrencyOperator) Next(ctx context.Context) ([]model.StepVector, error) {
+	return nil, nil
+}
+
 func (c *concurrencyOperator) Next2(ctx context.Context, batch []model.StepVector) error {
 	start := time.Now()
 	defer func() { c.AddExecutionTimeTaken(time.Since(start)) }()

@@ -5,6 +5,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"runtime"
 	"sort"
@@ -514,7 +515,7 @@ func (q *compatibilityQuery) Exec(ctx context.Context) (ret *promql.Result) {
 		Value:    promql.Vector{},
 		Warnings: q.warns,
 	}
-	defer recoverEngine(q.engine.logger, q.plan, &ret.Err)
+	// defer recoverEngine(q.engine.logger, q.plan, &ret.Err)
 
 	q.engine.metrics.currentQueries.Inc()
 	defer q.engine.metrics.currentQueries.Dec()

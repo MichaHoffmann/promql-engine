@@ -79,6 +79,20 @@ func (c *countValuesOperator) Series(ctx context.Context) ([]labels.Labels, erro
 	return c.series, err
 }
 
+func (c *countValuesOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := c.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}
+
 func (c *countValuesOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 	start := time.Now()
 	defer func() { c.AddExecutionTimeTaken(time.Since(start)) }()

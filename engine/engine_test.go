@@ -102,6 +102,9 @@ func TestVectorSelectorWithGaps(t *testing.T) {
 	oldResult := q2.Exec(context.Background())
 	testutil.Ok(t, oldResult.Err)
 
+	fmt.Println(oldResult.String())
+	fmt.Println(newResult.String())
+
 	testutil.WithGoCmp(comparer).Equals(t, oldResult, newResult, queryExplanation(q1))
 }
 

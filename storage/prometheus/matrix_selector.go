@@ -405,7 +405,6 @@ func (o *matrixSelector) Next2(ctx context.Context, batch []model.StepVector) er
 		return err
 	}
 	if res == nil {
-		return model.EOF
 	}
 	for i := range res {
 		batch[i] = res[i]

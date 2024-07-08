@@ -74,6 +74,20 @@ func (o *timestampOperator) GetPool() *model.VectorPool {
 	return o.next.GetPool()
 }
 
+func (o *timestampOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := o.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}
+
 func (o *timestampOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 	start := time.Now()
 	defer func() { o.AddExecutionTimeTaken(time.Since(start)) }()

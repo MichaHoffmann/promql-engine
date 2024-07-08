@@ -151,12 +151,8 @@ func (o *vectorSelector) Next2(ctx context.Context, vectors []model.StepVector) 
 		)
 		i := 0
 		for currStep := 0; currStep < o.numSteps && seriesTs <= o.maxt; currStep++ {
-<<<<<<< HEAD:storage/prometheus/vector_selector.go
 			currStepSamples = 0
 			t, v, h, ok, err := selectPoint(series.samples, seriesTs, o.lookbackDelta, o.offset)
-=======
-			_, v, _, ok, err := selectPoint(series.samples, seriesTs, o.lookbackDelta, o.offset)
->>>>>>> ab4398c (wip):execution/scan/vector_selector.go
 			if err != nil {
 				return err
 			}
@@ -164,17 +160,15 @@ func (o *vectorSelector) Next2(ctx context.Context, vectors []model.StepVector) 
 				v = float64(t) / 1000
 			}
 			if ok {
-<<<<<<< HEAD:storage/prometheus/vector_selector.go
 				if h != nil && !o.selectTimestamp {
 					vectors[currStep].AppendHistogram(o.vectorPool, series.signature, h)
 				} else {
 					vectors[currStep].AppendSample(o.vectorPool, series.signature, v)
 				}
 				currStepSamples++
-=======
-				vectors[currStep].Samples[i] = v
-				vectors[currStep].SampleIDs[i] = series.signature
->>>>>>> ab4398c (wip):execution/scan/vector_selector.go
+			} else {
+				//TODO: function signature should be (n, err), for now just return error
+				return model.EOF
 			}
 			i++
 			seriesTs += o.step
@@ -185,12 +179,24 @@ func (o *vectorSelector) Next2(ctx context.Context, vectors []model.StepVector) 
 		o.currentStep += o.step * int64(o.numSteps)
 		o.currentSeries = 0
 	}
-<<<<<<< HEAD:storage/prometheus/vector_selector.go
-	return vectors, nil
-=======
 
 	return nil
->>>>>>> ab4398c (wip):execution/scan/vector_selector.go
+}
+
+func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
+	// res is usually an empty slice and vector selector fills it, next2 assumes that res has the
+	// correct size and would panic if we would not fill it with step vectors here
+	res := o.GetPool().GetVectorBatch()
+	for i := 0; i < 10; i++ {
+		res = append(res, o.GetPool().GetStepVector(0))
+	}
+	if err := o.Next2(ctx, res); err != nil {
+		if err == model.EOF {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return res, nil
 }
 
 func (o *vectorSelector) loadSeries(ctx context.Context) error {
@@ -261,15 +267,4 @@ func selectPoint(it *storage.MemoizedSeriesIterator, ts, lookbackDelta, offset i
 	}
 
 	return t, v, fh, true, nil
-}
-
-func (o *vectorSelector) Next(ctx context.Context) ([]model.StepVector, error) {
-	res := o.vectorPool.GetVectorBatch()[:10]
-	if err := o.Next2(ctx, res); err != nil {
-		if err == model.EOF {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return res, nil
 }

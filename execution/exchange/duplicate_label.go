@@ -36,6 +36,20 @@ func NewDuplicateLabelCheck(next model.VectorOperator, opts *query.Options) mode
 	return oper
 }
 
+func (d *duplicateLabelCheckOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+	res, err := d.Next(ctx)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return model.EOF
+	}
+	for i := range res {
+		batch[i] = res[i]
+	}
+	return err
+}
+
 func (d *duplicateLabelCheckOperator) Next(ctx context.Context) ([]model.StepVector, error) {
 	start := time.Now()
 	defer func() { d.AddExecutionTimeTaken(time.Since(start)) }()

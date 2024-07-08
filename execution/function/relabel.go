@@ -170,7 +170,7 @@ func (o *relabelOperator) loadSeriesForLabelReplace(series []labels.Labels) erro
 	return nil
 }
 
-func (o *relabelFunctionOperator) Next2(ctx context.Context, batch []model.StepVector) error {
+func (o *relabelOperator) Next2(ctx context.Context, batch []model.StepVector) error {
 	res, err := o.Next(ctx)
 	if err != nil {
 		return err

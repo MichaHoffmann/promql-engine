@@ -87,6 +87,21 @@ func (c *coalesce) Series(ctx context.Context) ([]labels.Labels, error) {
 	}
 	return c.series, nil
 }
+func (c *coalesce) Next(ctx context.Context) ([]model.StepVector, error) {
+	// TODO: res is usually an empty slice and vector selector fills it, next2 assumes that res has the
+	// correct size and would panic if we would not fill it with step vectors here
+	res := c.GetPool().GetVectorBatch()
+	for i := 0; i < 10; i++ {
+		res = append(res, c.GetPool().GetStepVector(0))
+	}
+	if err := c.Next2(ctx, res); err != nil {
+		if err == model.EOF {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return res, nil
+}
 
 func (c *coalesce) Next2(ctx context.Context, batch []model.StepVector) error {
 	start := time.Now()
